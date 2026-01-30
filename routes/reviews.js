@@ -353,4 +353,86 @@ router.get('/health', async (req, res) => {
   }
 });
 
+// Manual scraping endpoints
+router.post('/scrape/fantano', async (req, res) => {
+  try {
+    const { maxVideos = 20 } = req.body;
+    
+    // Import scraping service
+    const SimplifiedScrapers = require('../scrapers/simplifiedScrapers');
+    const scraper = new SimplifiedScrapers(reviewService.database);
+    
+    const results = await scraper.scrapeFantanoRSS();
+    
+    res.json({
+      success: true,
+      scraped: results.length,
+      message: `Scraped ${results.length} new Fantano reviews`,
+      data: results
+    });
+  } catch (error) {
+    console.error('Error scraping Fantano:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to scrape Fantano reviews',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+router.post('/scrape/scaruffi', async (req, res) => {
+  try {
+    const { maxPages = 5 } = req.body;
+    
+    // Import scraping service
+    const SimplifiedScrapers = require('../scrapers/simplifiedScrapers');
+    const scraper = new SimplifiedScrapers(reviewService.database);
+    
+    const results = await scraper.scrapeScaruffi();
+    
+    res.json({
+      success: true,
+      scraped: results.length,
+      message: `Scraped ${results.length} new Scaruffi reviews`,
+      data: results
+    });
+  } catch (error) {
+    console.error('Error scraping Scaruffi:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to scrape Scaruffi reviews',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+router.post('/scrape/all', async (req, res) => {
+  try {
+    const results = { fantano: 0, scaruffi: 0, total: 0 };
+    
+    // Use simplified scrapers
+    const SimplifiedScrapers = require('../scrapers/simplifiedScrapers');
+    const scraper = new SimplifiedScrapers(reviewService.database);
+    
+    const scrapingResults = await scraper.scrapeAll();
+    results.fantano = scrapingResults.fantano.length;
+    results.scaruffi = scrapingResults.scaruffi.length;
+    results.total = scrapingResults.total;
+    
+    res.json({
+      success: true,
+      scraped: results.total,
+      breakdown: results,
+      message: `Scraped ${results.total} total reviews (${results.fantano} Fantano, ${results.scaruffi} Scaruffi)`
+    });
+  } catch (error) {
+    console.error('Error in bulk scraping:', error);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to perform bulk scraping',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
 module.exports = router;

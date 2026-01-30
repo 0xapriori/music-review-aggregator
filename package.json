@@ -18,17 +18,21 @@
     "axios": "^1.6.0",
     "better-sqlite3": "^9.6.0",
     "cheerio": "^1.0.0-rc.12",
+    "compromise": "^14.10.0",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
     "express-rate-limit": "^7.1.5",
+    "googleapis": "^126.0.1",
     "helmet": "^7.1.0",
     "natural": "^6.12.0",
     "node-cron": "^3.0.3",
     "p-limit": "^4.0.0",
+    "puppeteer": "^21.5.2",
     "stopword": "^2.0.8",
     "winston": "^3.11.0",
-    "youtube-transcript": "^1.0.6"
+    "youtube-transcript": "^1.0.6",
+    "ytdl-core": "^4.11.5"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",
