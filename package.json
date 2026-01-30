@@ -2,9 +2,9 @@
   "name": "music-review-aggregator",
   "version": "1.0.0",
   "description": "Music review aggregator backend",
-  "main": "server.js",
+  "main": "server-minimal.js",
   "scripts": {
-    "start": "node server.js",
+    "start": "node server-minimal.js",
     "dev": "nodemon server.js"
   },
   "dependencies": {
