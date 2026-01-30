@@ -46,7 +46,7 @@ const reviews = [
   }
 ];
 
-// Basic API routes
+// API routes that match frontend expectations
 app.get('/api/reviews', (req, res) => {
   res.json({
     reviews: reviews,
@@ -54,7 +54,30 @@ app.get('/api/reviews', (req, res) => {
   });
 });
 
-app.get('/api/overlaps', (req, res) => {
+app.get('/api/reviews/all', (req, res) => {
+  res.json({
+    reviews: reviews,
+    total: reviews.length
+  });
+});
+
+app.get('/api/reviews/fantano', (req, res) => {
+  const fantanoReviews = reviews.filter(r => r.reviewer === 'fantano');
+  res.json({
+    reviews: fantanoReviews,
+    total: fantanoReviews.length
+  });
+});
+
+app.get('/api/reviews/scaruffi', (req, res) => {
+  const scaruffiReviews = reviews.filter(r => r.reviewer === 'scaruffi');
+  res.json({
+    reviews: scaruffiReviews,
+    total: scaruffiReviews.length
+  });
+});
+
+app.get('/api/reviews/overlap', (req, res) => {
   const overlaps = {};
   reviews.forEach(review => {
     const key = `${review.artist}-${review.album}`;
@@ -82,7 +105,35 @@ app.get('/api/overlaps', (req, res) => {
   });
 });
 
-app.get('/health', (req, res) => {
+app.get('/api/reviews/stats', (req, res) => {
+  const stats = {
+    total: reviews.length,
+    by_reviewer: {
+      fantano: reviews.filter(r => r.reviewer === 'fantano').length,
+      scaruffi: reviews.filter(r => r.reviewer === 'scaruffi').length
+    },
+    overlaps: Object.values(reviews.reduce((acc, review) => {
+      const key = `${review.artist}-${review.album}`;
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(review);
+      return acc;
+    }, {})).filter(group => group.length > 1).length
+  };
+  res.json(stats);
+});
+
+app.get('/api/reviews/search/artist', (req, res) => {
+  const { q } = req.query;
+  const filtered = q ? reviews.filter(r => 
+    r.artist.toLowerCase().includes(q.toLowerCase())
+  ) : reviews;
+  res.json({
+    reviews: filtered,
+    total: filtered.length
+  });
+});
+
+app.get('/api/reviews/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
