@@ -1,0 +1,52 @@
+.filter-options {
+  text-align: center;
+}
+
+.filter-options label {
+  display: block;
+  margin-bottom: 1rem;
+  font-size: 1.1rem;
+  font-weight: 500;
+}
+
+.filter-buttons {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.filter-buttons button {
+  padding: 0.5rem 1rem;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 25px;
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.filter-buttons button:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.filter-buttons button.active {
+  background: rgba(255, 255, 255, 0.9);
+  color: #333;
+  border-color: rgba(255, 255, 255, 0.9);
+  font-weight: 600;
+}
+
+@media (max-width: 768px) {
+  .filter-buttons {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .filter-buttons button {
+    width: 200px;
+  }
+}
