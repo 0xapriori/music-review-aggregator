@@ -4,7 +4,6 @@ const config = {
     apiBaseUrl: 'http://localhost:3001'
   },
   production: {
-    // Will be updated with Railway URL after deployment
     apiBaseUrl: 'https://music-review-aggregator-production.up.railway.app'
   }
 };
