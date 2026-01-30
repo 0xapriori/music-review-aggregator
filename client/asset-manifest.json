@@ -1,0 +1,15 @@
+{
+  "files": {
+    "main.css": "/music-review-aggregator/static/css/main.483cd233.css",
+    "main.js": "/music-review-aggregator/static/js/main.1a2eaac7.js",
+    "static/js/453.78367da2.chunk.js": "/music-review-aggregator/static/js/453.78367da2.chunk.js",
+    "index.html": "/music-review-aggregator/index.html",
+    "main.483cd233.css.map": "/music-review-aggregator/static/css/main.483cd233.css.map",
+    "main.1a2eaac7.js.map": "/music-review-aggregator/static/js/main.1a2eaac7.js.map",
+    "453.78367da2.chunk.js.map": "/music-review-aggregator/static/js/453.78367da2.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.483cd233.css",
+    "static/js/main.1a2eaac7.js"
+  ]
+}
