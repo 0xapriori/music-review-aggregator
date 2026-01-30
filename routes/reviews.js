@@ -359,8 +359,8 @@ router.post('/scrape/fantano', async (req, res) => {
     const { maxVideos = 20 } = req.body;
     
     // Import scraping service
-    const SimplifiedScrapers = require('../scrapers/simplifiedScrapers');
-    const scraper = new SimplifiedScrapers(reviewService.database);
+    const RealScrapers = require('../scrapers/realScrapers');
+    const scraper = new RealScrapers(reviewService.database);
     
     const results = await scraper.scrapeFantanoRSS();
     
@@ -385,8 +385,8 @@ router.post('/scrape/scaruffi', async (req, res) => {
     const { maxPages = 5 } = req.body;
     
     // Import scraping service
-    const SimplifiedScrapers = require('../scrapers/simplifiedScrapers');
-    const scraper = new SimplifiedScrapers(reviewService.database);
+    const RealScrapers = require('../scrapers/realScrapers');
+    const scraper = new RealScrapers(reviewService.database);
     
     const results = await scraper.scrapeScaruffi();
     
