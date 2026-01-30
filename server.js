@@ -13,8 +13,8 @@ app.use(helmet());
 const corsOptions = {
   origin: process.env.NODE_ENV === 'production' 
     ? [
-        'https://apriori.github.io',
-        'https://www.apriori.github.io',
+        'https://0xapriori.github.io',
+        'https://www.0xapriori.github.io',
         /\.github\.io$/
       ]
     : ['http://localhost:3000', 'http://127.0.0.1:3000'],
