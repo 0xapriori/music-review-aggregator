@@ -2,7 +2,6 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
-const Database = require('better-sqlite3');
 const winston = require('winston');
 const path = require('path');
 const fs = require('fs');
@@ -25,21 +24,21 @@ const logger = winston.createLogger({
   ]
 });
 
-// Database class integrated
+// Database class using JSON data
 class CompactDatabase {
   constructor() {
-    this.db = null;
+    this.reviews = [];
     this.cache = new Map();
     this.cacheExpiry = new Map();
   }
 
   initialize() {
     try {
-      // Use the existing database file with real scraped data
-      const dbPath = path.join(__dirname, 'database', 'reviews.db');
-      this.db = new Database(dbPath);
-      this.db.pragma('journal_mode = WAL');
-      logger.info('Database initialized with existing scraped data');
+      // Load reviews from JSON file
+      const jsonPath = path.join(__dirname, 'database', 'reviews.json');
+      const rawData = fs.readFileSync(jsonPath, 'utf8');
+      this.reviews = JSON.parse(rawData);
+      logger.info(`Database initialized with ${this.reviews.length} reviews from JSON`);
       return true;
     } catch (error) {
       logger.error('Database initialization failed:', error);
@@ -47,70 +46,104 @@ class CompactDatabase {
     }
   }
 
-  // No need to create tables or seed data - using existing scraped database
-
   getReviews(filters = {}) {
-    let sql = 'SELECT * FROM reviews WHERE 1=1';
-    const params = [];
+    let filtered = [...this.reviews];
 
     if (filters.artist) {
-      sql += ' AND LOWER(artist) LIKE ?';
-      params.push(`%${filters.artist.toLowerCase()}%`);
+      const artist = filters.artist.toLowerCase();
+      filtered = filtered.filter(r => r.artist.toLowerCase().includes(artist));
     }
     if (filters.album) {
-      sql += ' AND LOWER(album) LIKE ?';
-      params.push(`%${filters.album.toLowerCase()}%`);
+      const album = filters.album.toLowerCase();
+      filtered = filtered.filter(r => r.album.toLowerCase().includes(album));
     }
     if (filters.reviewer) {
-      sql += ' AND reviewer = ?';
-      params.push(filters.reviewer);
+      filtered = filtered.filter(r => r.reviewer === filters.reviewer);
     }
     if (filters.min_score) {
-      sql += ' AND score >= ?';
-      params.push(filters.min_score);
+      filtered = filtered.filter(r => r.score >= parseFloat(filters.min_score));
     }
     if (filters.max_score) {
-      sql += ' AND score <= ?';
-      params.push(filters.max_score);
+      filtered = filtered.filter(r => r.score <= parseFloat(filters.max_score));
     }
 
-    sql += ' ORDER BY year DESC, score DESC LIMIT ?';
-    params.push(filters.limit || 100);
+    // Sort by year DESC, then score DESC
+    filtered.sort((a, b) => {
+      const yearDiff = (b.year || 0) - (a.year || 0);
+      if (yearDiff !== 0) return yearDiff;
+      return (b.score || 0) - (a.score || 0);
+    });
 
-    return this.db.prepare(sql).all(...params);
+    const limit = parseInt(filters.limit) || 100;
+    return filtered.slice(0, limit);
   }
 
   getOverlaps() {
-    const sql = `
-      SELECT 
-        r1.artist, r1.album, r1.year,
-        r1.score as fantano_score, r1.summary as fantano_summary, r1.source_url as fantano_url,
-        r2.score as scaruffi_score, r2.summary as scaruffi_summary, r2.source_url as scaruffi_url
-      FROM reviews r1
-      JOIN reviews r2 ON LOWER(r1.artist) = LOWER(r2.artist) AND LOWER(r1.album) = LOWER(r2.album)
-      WHERE r1.reviewer = 'fantano' AND r2.reviewer = 'scaruffi'
-      ORDER BY r1.year DESC
-    `;
-    return this.db.prepare(sql).all();
+    const fantanoReviews = this.reviews.filter(r => r.reviewer === 'fantano');
+    const scaruffiReviews = this.reviews.filter(r => r.reviewer === 'scaruffi');
+    const overlaps = [];
+
+    for (const fantano of fantanoReviews) {
+      const scaruffi = scaruffiReviews.find(s => 
+        s.artist.toLowerCase() === fantano.artist.toLowerCase() && 
+        s.album.toLowerCase() === fantano.album.toLowerCase()
+      );
+      
+      if (scaruffi) {
+        overlaps.push({
+          artist: fantano.artist,
+          album: fantano.album,
+          year: fantano.year,
+          fantano_score: fantano.score,
+          fantano_summary: fantano.summary,
+          fantano_url: fantano.source_url,
+          scaruffi_score: scaruffi.score,
+          scaruffi_summary: scaruffi.summary,
+          scaruffi_url: scaruffi.source_url
+        });
+      }
+    }
+
+    // Sort by year DESC
+    return overlaps.sort((a, b) => (b.year || 0) - (a.year || 0));
   }
 
   getStats() {
-    const total = this.db.prepare('SELECT COUNT(*) as count FROM reviews').get();
-    const byReviewer = this.db.prepare('SELECT reviewer, COUNT(*) as count FROM reviews GROUP BY reviewer').all();
-    const overlaps = this.db.prepare(`
-      SELECT COUNT(*) as count FROM (
-        SELECT r1.artist, r1.album FROM reviews r1
-        JOIN reviews r2 ON LOWER(r1.artist) = LOWER(r2.artist) AND LOWER(r1.album) = LOWER(r2.album)
-        WHERE r1.reviewer = 'fantano' AND r2.reviewer = 'scaruffi'
-      )
-    `).get();
-    const avgScores = this.db.prepare('SELECT reviewer, AVG(score) as avg FROM reviews GROUP BY reviewer').all();
+    const totalReviews = this.reviews.length;
+    
+    // Group by reviewer
+    const bySource = {};
+    for (const review of this.reviews) {
+      bySource[review.reviewer] = (bySource[review.reviewer] || 0) + 1;
+    }
+    
+    // Count overlaps
+    const overlappingReviews = this.getOverlaps().length;
+    
+    // Calculate average scores
+    const averageScores = {};
+    const reviewerGroups = {};
+    for (const review of this.reviews) {
+      if (!reviewerGroups[review.reviewer]) {
+        reviewerGroups[review.reviewer] = [];
+      }
+      if (review.score !== null && review.score !== undefined) {
+        reviewerGroups[review.reviewer].push(review.score);
+      }
+    }
+    
+    for (const [reviewer, scores] of Object.entries(reviewerGroups)) {
+      if (scores.length > 0) {
+        const avg = scores.reduce((sum, score) => sum + score, 0) / scores.length;
+        averageScores[reviewer] = Math.round(avg * 10) / 10;
+      }
+    }
 
     return {
-      totalReviews: total.count,
-      bySource: byReviewer.reduce((acc, row) => ({ ...acc, [row.reviewer]: row.count }), {}),
-      overlappingReviews: overlaps.count,
-      averageScores: avgScores.reduce((acc, row) => ({ ...acc, [row.reviewer]: Math.round(row.avg * 10) / 10 }), {})
+      totalReviews,
+      bySource,
+      overlappingReviews,
+      averageScores
     };
   }
 }
