@@ -302,12 +302,17 @@ app.get('/api/reviews/health', (req, res) => {
   });
 });
 
-// Serve static files from client build
-app.use(express.static(path.join(__dirname, 'client/build')));
+// Serve static files
+app.use(express.static(path.join(__dirname, 'public')));
 
-// Catch-all handler for React app
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'client/build/index.html'));
+// Root route specifically for the homepage
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public/index.html'));
+});
+
+// Catch-all handler for frontend (but not API routes)
+app.get(/^(?!\/api).*/, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public/index.html'));
 });
 
 // Error handling
