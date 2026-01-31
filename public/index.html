@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Music Review Aggregator - Fast</title>
+    <title>Music Review Aggregator</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
@@ -12,36 +12,40 @@
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: #333;
             min-height: 100vh;
+            padding: 20px;
         }
         
-        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
         
         header {
             text-align: center;
             background: rgba(255,255,255,0.95);
-            padding: 30px 20px;
+            padding: 30px;
             border-radius: 15px;
             margin-bottom: 30px;
-            backdrop-filter: blur(10px);
         }
         
         h1 { font-size: 2.5em; color: #2c3e50; margin-bottom: 10px; }
         .subtitle { color: #7f8c8d; font-size: 1.1em; }
         
-        .search-section {
+        .controls {
             background: rgba(255,255,255,0.95);
             padding: 20px;
             border-radius: 15px;
             margin-bottom: 30px;
+        }
+        
+        .search-row {
             display: flex;
             gap: 15px;
+            margin-bottom: 20px;
             flex-wrap: wrap;
         }
         
         .search-input {
             flex: 1;
-            padding: 10px 15px;
-            border: 2px solid #e1e8ed;
+            padding: 12px;
+            border: 2px solid #ddd;
             border-radius: 8px;
             font-size: 16px;
             min-width: 200px;
@@ -52,19 +56,30 @@
             border-color: #667eea;
         }
         
+        .filters {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
         .filter-btn {
-            padding: 10px 20px;
-            background: #f8f9fa;
-            border: 2px solid #e9ecef;
+            padding: 12px 24px;
+            border: none;
             border-radius: 25px;
+            background: #f8f9fa;
             cursor: pointer;
+            font-weight: bold;
             transition: all 0.3s ease;
+        }
+        
+        .filter-btn:hover {
+            background: #e9ecef;
         }
         
         .filter-btn.active {
             background: #667eea;
             color: white;
-            border-color: #667eea;
         }
         
         .stats {
@@ -81,37 +96,61 @@
             text-align: center;
         }
         
-        .stat-number { font-size: 2em; font-weight: bold; color: #667eea; }
-        .stat-label { color: #7f8c8d; margin-top: 5px; }
+        .stat-number { 
+            font-size: 2em; 
+            font-weight: bold; 
+            color: #667eea; 
+        }
         
-        .reviews-grid {
+        .stat-label { 
+            color: #7f8c8d; 
+            margin-top: 5px; 
+        }
+        
+        .reviews {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
             gap: 20px;
         }
         
         .review-card {
             background: rgba(255,255,255,0.95);
             border-radius: 15px;
-            padding: 20px;
+            padding: 25px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
             transition: transform 0.3s ease;
         }
         
-        .review-card:hover { transform: translateY(-5px); }
+        .review-card:hover {
+            transform: translateY(-5px);
+        }
         
-        .artist-name { font-weight: bold; color: #2c3e50; font-size: 1.1em; }
-        .album-name { color: #7f8c8d; margin-top: 2px; }
-        .year { color: #95a5a6; font-size: 0.9em; }
+        .reviewer {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 15px;
+            font-size: 0.8em;
+            font-weight: bold;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+        }
+        
+        .reviewer.fantano { background: #ffebee; color: #e74c3c; }
+        .reviewer.scaruffi { background: #e3f2fd; color: #3498db; }
+        .reviewer.pitchfork { background: #fef9e7; color: #f39c12; }
+        .reviewer.allmusic { background: #f3e5f5; color: #9b59b6; }
+        .reviewer.rym { background: #e8f5e8; color: #27ae60; }
         
         .score {
             float: right;
-            font-size: 1.5em;
+            font-size: 2em;
             font-weight: bold;
-            padding: 5px 10px;
-            border-radius: 50%;
             color: white;
-            min-width: 50px;
+            padding: 10px;
+            border-radius: 50%;
+            min-width: 60px;
             text-align: center;
+            line-height: 1;
         }
         
         .score.fantano { background: #e74c3c; }
@@ -120,29 +159,50 @@
         .score.allmusic { background: #9b59b6; }
         .score.rym { background: #27ae60; }
         
-        .reviewer-badge {
-            display: inline-block;
-            padding: 4px 8px;
-            border-radius: 12px;
-            font-size: 0.8em;
-            font-weight: bold;
-            margin-bottom: 10px;
-            text-transform: uppercase;
+        .artist { 
+            font-size: 1.2em; 
+            font-weight: bold; 
+            color: #2c3e50; 
+            margin-bottom: 5px;
         }
         
-        .reviewer-badge.fantano { background: #ffebee; color: #e74c3c; }
-        .reviewer-badge.scaruffi { background: #e3f2fd; color: #3498db; }
-        .reviewer-badge.pitchfork { background: #fef9e7; color: #f39c12; }
-        .reviewer-badge.allmusic { background: #f3e5f5; color: #9b59b6; }
-        .reviewer-badge.rym { background: #e8f5e8; color: #27ae60; }
+        .album { 
+            color: #7f8c8d; 
+            margin-bottom: 3px; 
+        }
         
-        .summary { line-height: 1.5; color: #2c3e50; margin: 10px 0; font-size: 0.9em; }
+        .year { 
+            color: #95a5a6; 
+            font-size: 0.9em; 
+            margin-bottom: 15px; 
+        }
         
-        .loading { text-align: center; padding: 40px; color: #7f8c8d; }
+        .summary { 
+            line-height: 1.5; 
+            color: #2c3e50; 
+            clear: both; 
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 60px;
+            color: #7f8c8d;
+            font-size: 1.2em;
+        }
+        
+        .error {
+            background: #ffebee;
+            color: #e74c3c;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            margin: 20px 0;
+        }
         
         @media (max-width: 768px) {
-            .search-section { flex-direction: column; }
-            .reviews-grid { grid-template-columns: 1fr; }
+            .search-row { flex-direction: column; }
+            .search-input { min-width: auto; }
+            .reviews { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -150,175 +210,173 @@
     <div class="container">
         <header>
             <h1>🎵 Music Review Aggregator</h1>
-            <p class="subtitle">Lightning Fast • 1,173 Reviews • Showing 15 at a time</p>
+            <p class="subtitle">1,173 Reviews • Lightning Fast</p>
         </header>
 
-        <div class="search-section">
-            <input type="text" class="search-input" id="artistInput" placeholder="Search by artist...">
-            <input type="text" class="search-input" id="albumInput" placeholder="Search by album...">
-            <button class="filter-btn active" data-filter="all">All</button>
-            <button class="filter-btn" data-filter="fantano">Fantano</button>
-            <button class="filter-btn" data-filter="scaruffi">Scaruffi</button>
-            <button class="filter-btn" data-filter="overlap">Overlaps</button>
+        <div class="controls">
+            <div class="search-row">
+                <input type="text" class="search-input" id="artistSearch" placeholder="Search by artist name...">
+                <input type="text" class="search-input" id="albumSearch" placeholder="Search by album name...">
+            </div>
+            
+            <div class="filters">
+                <button class="filter-btn active" onclick="loadReviews('all')">All Reviews</button>
+                <button class="filter-btn" onclick="loadReviews('fantano')">Fantano</button>
+                <button class="filter-btn" onclick="loadReviews('scaruffi')">Scaruffi</button>
+                <button class="filter-btn" onclick="loadReviews('pitchfork')">Pitchfork</button>
+                <button class="filter-btn" onclick="loadReviews('overlap')">Overlaps</button>
+            </div>
         </div>
 
-        <div class="stats" id="statsContainer"></div>
+        <div class="stats" id="stats-container"></div>
         
-        <div id="reviewsContainer">
+        <div id="reviews-container">
             <div class="loading">Loading reviews...</div>
         </div>
     </div>
 
     <script>
-        const API_BASE = window.location.origin;
-        let currentFilter = 'all';
-        let currentSearch = { artist: '', album: '' };
         let allReviews = [];
+        let currentFilter = 'all';
 
-        document.addEventListener('DOMContentLoaded', () => {
+        // Load initial data
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Page loaded');
             loadStats();
-            loadReviews();
-            setupEventListeners();
+            loadReviews('all');
+            setupSearch();
         });
-        
-        function setupEventListeners() {
-            document.querySelectorAll('.filter-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-                    e.target.classList.add('active');
-                    currentFilter = e.target.dataset.filter;
-                    loadReviews();
+
+        function loadStats() {
+            console.log('Loading stats...');
+            fetch('/api/reviews/stats')
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Stats loaded:', data);
+                    if (data.success) {
+                        displayStats(data.data);
+                    }
+                })
+                .catch(error => {
+                    console.error('Stats error:', error);
                 });
-            });
-            
-            const debounce = (func, wait) => {
-                let timeout;
-                return (...args) => {
-                    clearTimeout(timeout);
-                    timeout = setTimeout(() => func.apply(this, args), wait);
-                };
-            };
-            
-            const debouncedSearch = debounce(() => {
-                currentSearch.artist = document.getElementById('artistInput').value;
-                currentSearch.album = document.getElementById('albumInput').value;
-                filterAndDisplay();
-            }, 300);
-            
-            document.getElementById('artistInput').addEventListener('input', debouncedSearch);
-            document.getElementById('albumInput').addEventListener('input', debouncedSearch);
         }
-        
-        async function loadStats() {
-            try {
-                const response = await fetch(`${API_BASE}/api/reviews/stats`);
-                const data = await response.json();
-                
-                if (data.success) {
-                    const stats = data.data;
-                    document.getElementById('statsContainer').innerHTML = `
-                        <div class="stat-card">
-                            <div class="stat-number">${stats.totalReviews}</div>
-                            <div class="stat-label">Total Reviews</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-number">${stats.bySource?.fantano || 0}</div>
-                            <div class="stat-label">Fantano</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-number">${stats.bySource?.scaruffi || 0}</div>
-                            <div class="stat-label">Scaruffi</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-number">${stats.overlappingReviews}</div>
-                            <div class="stat-label">Overlaps</div>
-                        </div>
-                    `;
-                }
-            } catch (error) {
-                console.error('Error loading stats:', error);
-            }
+
+        function displayStats(stats) {
+            document.getElementById('stats-container').innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-number">${stats.totalReviews || 0}</div>
+                    <div class="stat-label">Total Reviews</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${stats.bySource?.fantano || 0}</div>
+                    <div class="stat-label">Fantano</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${stats.bySource?.scaruffi || 0}</div>
+                    <div class="stat-label">Scaruffi</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">${stats.overlappingReviews || 0}</div>
+                    <div class="stat-label">Overlaps</div>
+                </div>
+            `;
         }
-        
-        async function loadReviews() {
-            const container = document.getElementById('reviewsContainer');
-            container.innerHTML = '<div class="loading">Loading...</div>';
+
+        function loadReviews(filter) {
+            console.log('Loading reviews for filter:', filter);
+            currentFilter = filter;
             
-            try {
-                let endpoint = `/api/reviews/${currentFilter}`;
-                const params = new URLSearchParams({ limit: 15 });
-                
-                const response = await fetch(`${API_BASE}${endpoint}?${params}`);
-                const data = await response.json();
-                
-                if (data.success) {
-                    allReviews = data.data || [];
-                    filterAndDisplay();
-                } else {
-                    container.innerHTML = '<div class="loading">Error loading reviews</div>';
-                }
-            } catch (error) {
-                console.error('Error:', error);
-                container.innerHTML = '<div class="loading">Network error</div>';
-            }
+            // Update active button
+            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+            event?.target?.classList.add('active');
+            
+            // Show loading
+            document.getElementById('reviews-container').innerHTML = '<div class="loading">Loading reviews...</div>';
+            
+            // Build URL
+            let url = `/api/reviews/${filter}?limit=20`;
+            
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Reviews loaded:', data);
+                    if (data.success) {
+                        allReviews = data.data || [];
+                        displayReviews(allReviews);
+                    } else {
+                        document.getElementById('reviews-container').innerHTML = '<div class="error">Error loading reviews</div>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Reviews error:', error);
+                    document.getElementById('reviews-container').innerHTML = '<div class="error">Network error occurred</div>';
+                });
         }
-        
-        function filterAndDisplay() {
-            let filtered = [...allReviews];
-            
-            if (currentSearch.artist) {
-                const artist = currentSearch.artist.toLowerCase();
-                filtered = filtered.filter(r => r.artist.toLowerCase().includes(artist));
-            }
-            
-            if (currentSearch.album) {
-                const album = currentSearch.album.toLowerCase();
-                filtered = filtered.filter(r => r.album.toLowerCase().includes(album));
-            }
-            
-            displayReviews(filtered);
-        }
-        
+
         function displayReviews(reviews) {
-            const container = document.getElementById('reviewsContainer');
+            console.log('Displaying reviews:', reviews.length);
+            const container = document.getElementById('reviews-container');
             
             if (reviews.length === 0) {
                 container.innerHTML = '<div class="loading">No reviews found</div>';
                 return;
             }
-            
-            const reviewsHtml = reviews.map(review => {
+
+            const reviewsHTML = reviews.map(review => {
                 if (review.overlap) {
                     return `
                         <div class="review-card" style="border: 3px solid #f39c12;">
                             <div style="text-align: center; margin-bottom: 15px;">
-                                <span style="background: #f39c12; color: white; padding: 4px 8px; border-radius: 12px; font-size: 0.8em;">OVERLAP</span>
+                                <span style="background: #f39c12; color: white; padding: 6px 12px; border-radius: 15px; font-weight: bold;">OVERLAP</span>
                             </div>
-                            <div class="artist-name">${review.artist}</div>
-                            <div class="album-name">${review.album}</div>
+                            <div class="artist">${review.artist}</div>
+                            <div class="album">${review.album}</div>
                             <div class="year">${review.year || ''}</div>
-                            <div style="margin: 15px 0;">
-                                <div>Fantano: <strong>${review.fantano_score}</strong></div>
-                                <div>Scaruffi: <strong>${review.scaruffi_score}</strong></div>
+                            <div style="margin-top: 15px;">
+                                <div><strong>Fantano:</strong> ${review.fantano_score}/10</div>
+                                <div><strong>Scaruffi:</strong> ${review.scaruffi_score}/10</div>
                             </div>
                         </div>
                     `;
                 } else {
                     return `
                         <div class="review-card">
-                            <div class="reviewer-badge ${review.reviewer}">${review.reviewer}</div>
+                            <div class="reviewer ${review.reviewer}">${review.reviewer}</div>
                             <div class="score ${review.reviewer}">${review.score || 'N/A'}</div>
-                            <div style="clear: both;"></div>
-                            <div class="artist-name">${review.artist}</div>
-                            <div class="album-name">${review.album}</div>
+                            <div class="artist">${review.artist}</div>
+                            <div class="album">${review.album}</div>
                             <div class="year">${review.year || ''}</div>
-                            <div class="summary">${(review.summary || '').substring(0, 150)}${(review.summary || '').length > 150 ? '...' : ''}</div>
+                            <div class="summary">${(review.summary || '').substring(0, 200)}${(review.summary || '').length > 200 ? '...' : ''}</div>
                         </div>
                     `;
                 }
             }).join('');
+
+            container.innerHTML = `<div class="reviews">${reviewsHTML}</div>`;
+        }
+
+        function setupSearch() {
+            function doSearch() {
+                const artistQuery = document.getElementById('artistSearch').value.toLowerCase();
+                const albumQuery = document.getElementById('albumSearch').value.toLowerCase();
+                
+                if (!artistQuery && !albumQuery) {
+                    displayReviews(allReviews);
+                    return;
+                }
+                
+                const filtered = allReviews.filter(review => {
+                    const artistMatch = !artistQuery || review.artist.toLowerCase().includes(artistQuery);
+                    const albumMatch = !albumQuery || review.album.toLowerCase().includes(albumQuery);
+                    return artistMatch && albumMatch;
+                });
+                
+                displayReviews(filtered);
+            }
             
-            container.innerHTML = `<div class="reviews-grid">${reviewsHtml}</div>`;
+            document.getElementById('artistSearch').addEventListener('input', doSearch);
+            document.getElementById('albumSearch').addEventListener('input', doSearch);
         }
     </script>
 </body>
