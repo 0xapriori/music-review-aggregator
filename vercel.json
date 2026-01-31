@@ -19,10 +19,5 @@
   ],
   "env": {
     "NODE_ENV": "production"
-  },
-  "functions": {
-    "server-compact.js": {
-      "maxDuration": 10
-    }
   }
 }
