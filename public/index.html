@@ -308,6 +308,21 @@
         <div id="reviewsContainer">
             <div class="loading">Loading reviews...</div>
         </div>
+        
+        <div style="text-align: center; margin: 30px 0;">
+            <button id="loadMoreBtn" style="
+                padding: 15px 30px;
+                background: #667eea;
+                color: white;
+                border: none;
+                border-radius: 25px;
+                font-size: 16px;
+                font-weight: bold;
+                cursor: pointer;
+                display: none;
+                transition: all 0.3s ease;
+            ">Load More Reviews</button>
+        </div>
     </div>
 
     <script>
@@ -315,6 +330,8 @@
         
         let currentFilter = 'all';
         let currentSearch = { artist: '', album: '' };
+        let currentReviews = [];
+        let hasMoreReviews = true;
         
         // Initialize app
         document.addEventListener('DOMContentLoaded', () => {
@@ -397,7 +414,7 @@
             
             try {
                 let endpoint = `/api/reviews/${currentFilter}`;
-                const params = new URLSearchParams({ limit: 50 });
+                const params = new URLSearchParams({ limit: 20 });
                 
                 if (currentSearch.artist) params.append('artist', currentSearch.artist);
                 if (currentSearch.album) params.append('album', currentSearch.album);

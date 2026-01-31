@@ -74,8 +74,9 @@ class CompactDatabase {
       return (b.score || 0) - (a.score || 0);
     });
 
+    const offset = parseInt(filters.offset) || 0;
     const limit = parseInt(filters.limit) || 100;
-    return filtered.slice(0, limit);
+    return filtered.slice(offset, offset + limit);
   }
 
   getOverlaps() {
