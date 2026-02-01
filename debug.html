@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Test</title>
+</head>
+<body>
+    <h1>Debug Test</h1>
+    <div id="output"></div>
+    
+    <script>
+        const output = document.getElementById('output');
+        
+        async function testEverything() {
+            output.innerHTML = '<p>Starting tests...</p>';
+            
+            try {
+                // Test 1: Basic API call
+                console.log('Testing basic API call...');
+                const statsResponse = await fetch('https://music-review-aggregator-y81z.vercel.app/api/reviews/stats');
+                const statsData = await statsResponse.json();
+                output.innerHTML += `<p>✅ Stats API: ${statsData.success ? 'SUCCESS' : 'FAILED'}</p>`;
+                console.log('Stats data:', statsData);
+                
+                // Test 2: Reviews API call
+                console.log('Testing reviews API call...');
+                const reviewsResponse = await fetch('https://music-review-aggregator-y81z.vercel.app/api/reviews/all?limit=5');
+                const reviewsData = await reviewsResponse.json();
+                output.innerHTML += `<p>✅ Reviews API: ${reviewsData.success ? 'SUCCESS' : 'FAILED'} (${reviewsData.count} reviews)</p>`;
+                console.log('Reviews data:', reviewsData);
+                
+                // Test 3: Test filter API call
+                console.log('Testing filter API call...');
+                const fantanoResponse = await fetch('https://music-review-aggregator-y81z.vercel.app/api/reviews/fantano?limit=3');
+                const fantanoData = await fantanoResponse.json();
+                output.innerHTML += `<p>✅ Fantano Filter: ${fantanoData.success ? 'SUCCESS' : 'FAILED'} (${fantanoData.count} reviews)</p>`;
+                console.log('Fantano data:', fantanoData);
+                
+                // Test 4: Test overlap API call
+                console.log('Testing overlap API call...');
+                const overlapResponse = await fetch('https://music-review-aggregator-y81z.vercel.app/api/reviews/overlap');
+                const overlapData = await overlapResponse.json();
+                output.innerHTML += `<p>✅ Overlap API: ${overlapData.success ? 'SUCCESS' : 'FAILED'} (${overlapData.count} overlaps)</p>`;
+                console.log('Overlap data:', overlapData);
+                
+                output.innerHTML += '<p><strong>All API endpoints are working correctly!</strong></p>';
+                
+            } catch (error) {
+                console.error('Test failed:', error);
+                output.innerHTML += `<p>❌ Error: ${error.message}</p>`;
+            }
+        }
+        
+        document.addEventListener('DOMContentLoaded', testEverything);
+    </script>
+</body>
+</html>

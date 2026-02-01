@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Minimal Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        button { margin: 10px; padding: 10px 20px; }
+        .active { background: blue; color: white; }
+        #output { border: 1px solid #ccc; padding: 10px; margin: 10px 0; height: 400px; overflow-y: scroll; }
+    </style>
+</head>
+<body>
+    <h1>Minimal Test</h1>
+    
+    <div>
+        <button class="filter-btn active" data-filter="all">All</button>
+        <button class="filter-btn" data-filter="fantano">Fantano</button>
+        <button class="filter-btn" data-filter="scaruffi">Scaruffi</button>
+        <button class="filter-btn" data-filter="overlap">Overlaps</button>
+    </div>
+    
+    <div id="output">Click buttons to test...</div>
+    
+    <script>
+        const output = document.getElementById('output');
+        
+        function log(message) {
+            console.log(message);
+            output.innerHTML += `<div>${new Date().toLocaleTimeString()}: ${message}</div>`;
+            output.scrollTop = output.scrollHeight;
+        }
+        
+        let currentFilter = 'all';
+        
+        async function testAPI(filter) {
+            try {
+                log(`Testing API with filter: ${filter}`);
+                
+                const url = `https://music-review-aggregator-y81z.vercel.app/api/reviews/${filter}?limit=3`;
+                log(`Fetching: ${url}`);
+                
+                const response = await fetch(url);
+                log(`Response status: ${response.status} ${response.statusText}`);
+                
+                const data = await response.json();
+                log(`Response data: success=${data.success}, count=${data.count}`);
+                
+                if (data.data && data.data.length > 0) {
+                    log(`First review: ${data.data[0].artist} - ${data.data[0].album}`);
+                }
+                
+                return data;
+                
+            } catch (error) {
+                log(`ERROR: ${error.message}`);
+                console.error(error);
+                return null;
+            }
+        }
+        
+        function setupButtons() {
+            log('Setting up button listeners...');
+            
+            document.querySelectorAll('.filter-btn').forEach((btn, index) => {
+                log(`Adding listener to button ${index}: ${btn.textContent}`);
+                
+                btn.addEventListener('click', async (e) => {
+                    log(`Button clicked: ${e.target.textContent}`);
+                    
+                    const newFilter = e.target.dataset.filter;
+                    log(`Filter: ${newFilter}`);
+                    
+                    // Update active button
+                    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                    e.target.classList.add('active');
+                    
+                    currentFilter = newFilter;
+                    
+                    // Test API
+                    await testAPI(newFilter);
+                });
+            });
+        }
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            log('DOM loaded, initializing...');
+            setupButtons();
+            
+            // Test initial load
+            testAPI('all');
+        });
+        
+        // Also test immediately
+        log('Script loaded');
+    </script>
+</body>
+</html>
