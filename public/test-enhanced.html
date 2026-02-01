@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Quick Test - Enhanced API</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test { margin: 10px 0; padding: 10px; border: 1px solid #ccc; }
+        .success { background: #d4edda; }
+        .error { background: #f8d7da; }
+        .loading { background: #fff3cd; }
+    </style>
+</head>
+<body>
+    <h1>Enhanced API Test</h1>
+    <div id="results"></div>
+    
+    <script>
+        const results = document.getElementById('results');
+        
+        function addResult(title, status, data) {
+            const div = document.createElement('div');
+            div.className = `test ${status}`;
+            div.innerHTML = `
+                <strong>${title}</strong><br>
+                Status: ${status}<br>
+                ${data ? `Data: ${JSON.stringify(data, null, 2)}` : ''}
+            `;
+            results.appendChild(div);
+        }
+        
+        async function testAPI() {
+            const API_BASE = window.location.origin;
+            
+            // Test stats endpoint
+            try {
+                addResult('Stats API Test', 'loading', 'Testing...');
+                const response = await fetch(`${API_BASE}/api/reviews/stats`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    addResult('Stats API Test', 'success', data.data);
+                } else {
+                    addResult('Stats API Test', 'error', data);
+                }
+            } catch (error) {
+                addResult('Stats API Test', 'error', error.message);
+            }
+            
+            // Test reviews endpoint
+            try {
+                addResult('Reviews API Test', 'loading', 'Testing...');
+                const response = await fetch(`${API_BASE}/api/reviews/all?limit=2`);
+                const data = await response.json();
+                
+                if (data.success && data.data.length > 0) {
+                    addResult('Reviews API Test', 'success', `${data.data.length} reviews loaded`);
+                } else {
+                    addResult('Reviews API Test', 'error', 'No reviews loaded');
+                }
+            } catch (error) {
+                addResult('Reviews API Test', 'error', error.message);
+            }
+            
+            // Test overlap endpoint  
+            try {
+                addResult('Overlap API Test', 'loading', 'Testing...');
+                const response = await fetch(`${API_BASE}/api/reviews/overlap`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    addResult('Overlap API Test', 'success', `${data.data.length} overlaps found`);
+                } else {
+                    addResult('Overlap API Test', 'error', data);
+                }
+            } catch (error) {
+                addResult('Overlap API Test', 'error', error.message);
+            }
+        }
+        
+        document.addEventListener('DOMContentLoaded', testAPI);
+    </script>
+</body>
+</html>

@@ -140,9 +140,52 @@
         
         .loading { text-align: center; padding: 40px; color: #7f8c8d; }
         
+        .skeleton {
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+        }
+        
+        @keyframes loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+        
+        .skeleton-card {
+            background: rgba(255,255,255,0.95);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .skeleton-line {
+            height: 12px;
+            border-radius: 6px;
+            margin-bottom: 8px;
+        }
+        
+        .skeleton-title {
+            height: 16px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            width: 70%;
+        }
+        
+        .skeleton-stat {
+            height: 40px;
+            border-radius: 10px;
+            margin-bottom: 5px;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
         @media (max-width: 768px) {
             .search-section { flex-direction: column; }
             .reviews-grid { grid-template-columns: 1fr; }
+            .review-card { margin-bottom: 15px; }
         }
     </style>
 </head>
@@ -150,7 +193,8 @@
     <div class="container">
         <header>
             <h1>🎵 Music Review Aggregator</h1>
-            <p class="subtitle">Fast & Lightweight • 1,173 Reviews</p>
+            <p class="subtitle">Fast & Lightweight • Loading...</p>
+            <div style="font-size: 0.8em; color: #95a5a6; margin-top: 5px;">Press Ctrl+/ to focus search</div>
         </header>
 
         <div class="search-section">
@@ -170,27 +214,104 @@
     </div>
 
     <script>
-        const API_BASE = window.location.origin;
+        // Configuration and state management
+        const CONFIG = {
+            API_BASE: window.location.origin,
+            RETRY_ATTEMPTS: 3,
+            RETRY_DELAY: 1000,
+            REQUEST_TIMEOUT: 10000,
+            CACHE_TTL: 5 * 60 * 1000, // 5 minutes
+            DEBUG: true
+        };
+        
         let currentFilter = 'all';
         let currentSearch = { artist: '', album: '' };
         let allReviews = [];
+        let requestCache = new Map();
+        let retryCount = new Map();
+        
+        // Enhanced logging system
+        const logger = {
+            debug: (msg, data) => CONFIG.DEBUG && console.debug(`[DEBUG] ${msg}`, data),
+            info: (msg, data) => console.info(`[INFO] ${msg}`, data),
+            warn: (msg, data) => console.warn(`[WARN] ${msg}`, data),
+            error: (msg, data) => console.error(`[ERROR] ${msg}`, data)
+        };
 
+        // Enhanced initialization with error recovery
         document.addEventListener('DOMContentLoaded', () => {
-            loadStats();
-            loadReviews();
-            setupEventListeners();
+            logger.info('DOM loaded, initializing application');
+            
+            // Add global error handler
+            window.addEventListener('error', (e) => {
+                logger.error('Global error:', e.error);
+            });
+            
+            window.addEventListener('unhandledrejection', (e) => {
+                logger.error('Unhandled promise rejection:', e.reason);
+            });
+            
+            // Initialize with error handling
+            Promise.all([
+                loadStats().catch(e => logger.error('Stats initialization failed:', e)),
+                loadReviews().catch(e => logger.error('Reviews initialization failed:', e))
+            ]).finally(() => {
+                setupEventListeners();
+                logger.info('Application initialization completed');
+                
+                // Add keyboard shortcuts
+                document.addEventListener('keydown', (e) => {
+                    if (e.ctrlKey && e.key === '/') {
+                        e.preventDefault();
+                        document.getElementById('artistInput').focus();
+                    }
+                });
+                
+                // Restore subtitle if no search is active
+                setTimeout(() => {
+                    const hasActiveSearch = currentSearch.artist || currentSearch.album;
+                    if (!hasActiveSearch) {
+                        const subtitle = document.querySelector('.subtitle');
+                        if (subtitle && allReviews.length > 0) {
+                            subtitle.textContent = `Fast & Lightweight • ${allReviews.length} Reviews`;
+                            subtitle.style.color = '#7f8c8d';
+                        }
+                    }
+                }, 1000);
+            });
         });
         
         function setupEventListeners() {
+            logger.debug('Setting up event listeners');
+            
+            // Filter button listeners with enhanced feedback
             document.querySelectorAll('.filter-btn').forEach(btn => {
                 btn.addEventListener('click', (e) => {
+                    const newFilter = e.target.dataset.filter;
+                    if (newFilter === currentFilter) {
+                        logger.debug('Filter unchanged, skipping reload');
+                        return;
+                    }
+                    
                     document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
                     e.target.classList.add('active');
-                    currentFilter = e.target.dataset.filter;
-                    loadReviews();
+                    
+                    // Add loading state to clicked button
+                    const originalText = e.target.textContent;
+                    e.target.textContent = 'Loading...';
+                    e.target.disabled = true;
+                    
+                    currentFilter = newFilter;
+                    logger.info(`Filter changed to: ${currentFilter}`);
+                    
+                    loadReviews().finally(() => {
+                        e.target.textContent = originalText;
+                        e.target.disabled = false;
+                    });
                 });
             });
             
+            // Enhanced debounced search
             const debounce = (func, wait) => {
                 let timeout;
                 return (...args) => {
@@ -200,125 +321,411 @@
             };
             
             const debouncedSearch = debounce(() => {
-                currentSearch.artist = document.getElementById('artistInput').value;
-                currentSearch.album = document.getElementById('albumInput').value;
-                filterAndDisplay();
+                const newSearch = {
+                    artist: document.getElementById('artistInput').value.trim(),
+                    album: document.getElementById('albumInput').value.trim()
+                };
+                
+                // Only trigger search if values actually changed
+                if (newSearch.artist !== currentSearch.artist || newSearch.album !== currentSearch.album) {
+                    currentSearch = newSearch;
+                    logger.debug('Search changed:', currentSearch);
+                    filterAndDisplay();
+                }
             }, 300);
             
-            document.getElementById('artistInput').addEventListener('input', debouncedSearch);
-            document.getElementById('albumInput').addEventListener('input', debouncedSearch);
+            // Add real-time search feedback
+            const artistInput = document.getElementById('artistInput');
+            const albumInput = document.getElementById('albumInput');
+            
+            artistInput.addEventListener('input', (e) => {
+                addSearchFeedback(e.target);
+                debouncedSearch();
+            });
+            
+            albumInput.addEventListener('input', (e) => {
+                addSearchFeedback(e.target);
+                debouncedSearch();
+            });
+            
+            // Clear search functionality
+            artistInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    e.target.value = '';
+                    debouncedSearch();
+                }
+            });
+            
+            albumInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    e.target.value = '';
+                    debouncedSearch();
+                }
+            });
+        }
+        
+        function addSearchFeedback(input) {
+            input.style.borderColor = input.value.trim() ? '#667eea' : '#e1e8ed';
+            input.style.background = input.value.trim() ? '#f8f9ff' : 'white';
+        }
+        
+        // Enhanced API request function with retry logic
+        async function apiRequest(url, options = {}) {
+            const cacheKey = `${url}_${JSON.stringify(options)}`;
+            const cachedData = getCachedData(cacheKey);
+            
+            if (cachedData) {
+                logger.debug('Using cached data for:', url);
+                return cachedData;
+            }
+            
+            const requestId = `${Date.now()}_${Math.random()}`;
+            logger.debug(`Starting API request [${requestId}]:`, url);
+            
+            let lastError;
+            const maxRetries = CONFIG.RETRY_ATTEMPTS;
+            
+            for (let attempt = 1; attempt <= maxRetries; attempt++) {
+                try {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), CONFIG.REQUEST_TIMEOUT);
+                    
+                    const response = await fetch(url, {
+                        ...options,
+                        signal: controller.signal,
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            ...options.headers
+                        }
+                    });
+                    
+                    clearTimeout(timeoutId);
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    
+                    const data = await response.json();
+                    
+                    if (!data.success) {
+                        throw new Error(data.error || 'API returned unsuccessful response');
+                    }
+                    
+                    // Cache successful response
+                    setCachedData(cacheKey, data);
+                    logger.debug(`API request successful [${requestId}]:`, { attempt, dataCount: data.data?.length || 'N/A' });
+                    
+                    return data;
+                    
+                } catch (error) {
+                    lastError = error;
+                    logger.warn(`API request attempt ${attempt} failed [${requestId}]:`, error.message);
+                    
+                    if (attempt < maxRetries) {
+                        const delay = CONFIG.RETRY_DELAY * Math.pow(2, attempt - 1); // Exponential backoff
+                        logger.debug(`Retrying in ${delay}ms...`);
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                    }
+                }
+            }
+            
+            logger.error(`All API request attempts failed [${requestId}]:`, lastError);
+            throw lastError;
+        }
+        
+        // Cache management
+        function getCachedData(key) {
+            const cached = requestCache.get(key);
+            if (cached && Date.now() - cached.timestamp < CONFIG.CACHE_TTL) {
+                return cached.data;
+            }
+            if (cached) {
+                requestCache.delete(key); // Remove expired cache
+            }
+            return null;
+        }
+        
+        function setCachedData(key, data) {
+            requestCache.set(key, {
+                data: data,
+                timestamp: Date.now()
+            });
         }
         
         async function loadStats() {
+            const container = document.getElementById('statsContainer');
+            
             try {
-                const response = await fetch(`${API_BASE}/api/reviews/stats`);
-                const data = await response.json();
+                // Show loading state
+                container.innerHTML = createStatsLoadingSkeleton();
                 
-                if (data.success) {
-                    const stats = data.data;
-                    document.getElementById('statsContainer').innerHTML = `
-                        <div class="stat-card">
-                            <div class="stat-number">${stats.totalReviews}</div>
-                            <div class="stat-label">Total Reviews</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-number">${stats.bySource?.fantano || 0}</div>
-                            <div class="stat-label">Fantano</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-number">${stats.bySource?.scaruffi || 0}</div>
-                            <div class="stat-label">Scaruffi</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-number">${stats.overlappingReviews}</div>
-                            <div class="stat-label">Overlaps</div>
-                        </div>
-                    `;
-                }
+                const data = await apiRequest(`${CONFIG.API_BASE}/api/reviews/stats`);
+                const stats = data.data;
+                
+                container.innerHTML = `
+                    <div class="stat-card">
+                        <div class="stat-number">${stats.totalReviews}</div>
+                        <div class="stat-label">Total Reviews</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${stats.bySource?.fantano || 0}</div>
+                        <div class="stat-label">Fantano</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${stats.bySource?.scaruffi || 0}</div>
+                        <div class="stat-label">Scaruffi</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${stats.overlappingReviews}</div>
+                        <div class="stat-label">Overlaps</div>
+                    </div>
+                `;
+                
+                logger.info('Stats loaded successfully', stats);
+                
             } catch (error) {
-                console.error('Error loading stats:', error);
+                logger.error('Failed to load stats:', error);
+                container.innerHTML = `
+                    <div class="stat-card" style="color: #e74c3c; text-align: center;">
+                        <div style="font-size: 1.2em; margin-bottom: 5px;">⚠️</div>
+                        <div style="font-size: 0.9em;">Stats unavailable</div>
+                        <div style="font-size: 0.7em; margin-top: 5px;">
+                            <button onclick="loadStats()" style="background: none; border: 1px solid #e74c3c; color: #e74c3c; padding: 2px 6px; border-radius: 3px; font-size: 0.7em;">Retry</button>
+                        </div>
+                    </div>
+                `;
             }
         }
         
         async function loadReviews() {
             const container = document.getElementById('reviewsContainer');
-            container.innerHTML = '<div class="loading">Loading...</div>';
+            const loadingId = `load_${currentFilter}_${Date.now()}`;
             
             try {
+                logger.info(`Loading reviews for filter: ${currentFilter}`);
+                
+                // Show enhanced loading state
+                container.innerHTML = createReviewsLoadingSkeleton();
+                
                 let endpoint = `/api/reviews/${currentFilter}`;
-                const params = new URLSearchParams({ limit: 30 });
+                const params = new URLSearchParams({ limit: 50 });
                 
-                const response = await fetch(`${API_BASE}${endpoint}?${params}`);
-                const data = await response.json();
+                const data = await apiRequest(`${CONFIG.API_BASE}${endpoint}?${params}`);
                 
-                if (data.success) {
-                    allReviews = data.data || [];
-                    filterAndDisplay();
-                } else {
-                    container.innerHTML = '<div class="loading">Error loading reviews</div>';
-                }
+                allReviews = data.data || [];
+                logger.info(`Loaded ${allReviews.length} reviews for filter: ${currentFilter}`);
+                
+                filterAndDisplay();
+                
             } catch (error) {
-                console.error('Error:', error);
-                container.innerHTML = '<div class="loading">Network error</div>';
+                logger.error('Failed to load reviews:', error);
+                
+                // Show detailed error state with retry option
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: #7f8c8d;">
+                        <div style="font-size: 2em; margin-bottom: 10px;">⚠️</div>
+                        <div style="font-size: 1.1em; margin-bottom: 10px; color: #e74c3c;">Failed to load reviews</div>
+                        <div style="font-size: 0.9em; margin-bottom: 20px;">${error.message}</div>
+                        <button onclick="loadReviews()" style="
+                            background: #667eea;
+                            color: white;
+                            border: none;
+                            padding: 10px 20px;
+                            border-radius: 5px;
+                            cursor: pointer;
+                            font-size: 0.9em;
+                        ">Retry Loading</button>
+                        <div style="margin-top: 15px; font-size: 0.8em;">
+                            <a href="${CONFIG.API_BASE}/api/reviews/health" target="_blank" style="color: #667eea;">Check API Status</a>
+                        </div>
+                    </div>
+                `;
             }
         }
         
         function filterAndDisplay() {
+            if (!allReviews || allReviews.length === 0) {
+                logger.warn('No reviews available to filter');
+                displayReviews([]);
+                return;
+            }
+            
+            const startTime = performance.now();
             let filtered = [...allReviews];
+            const originalCount = filtered.length;
             
-            if (currentSearch.artist) {
-                const artist = currentSearch.artist.toLowerCase();
-                filtered = filtered.filter(r => r.artist.toLowerCase().includes(artist));
+            // Enhanced text search with fuzzy matching
+            if (currentSearch.artist && currentSearch.artist.length > 0) {
+                const artistQuery = currentSearch.artist.toLowerCase().trim();
+                filtered = filtered.filter(r => {
+                    if (!r.artist) return false;
+                    const artistName = r.artist.toLowerCase();
+                    return artistName.includes(artistQuery) || 
+                           fuzzyMatch(artistName, artistQuery);
+                });
+                logger.debug(`Artist filter '${artistQuery}' reduced results from ${originalCount} to ${filtered.length}`);
             }
             
-            if (currentSearch.album) {
-                const album = currentSearch.album.toLowerCase();
-                filtered = filtered.filter(r => r.album.toLowerCase().includes(album));
+            if (currentSearch.album && currentSearch.album.length > 0) {
+                const albumQuery = currentSearch.album.toLowerCase().trim();
+                const preAlbumCount = filtered.length;
+                filtered = filtered.filter(r => {
+                    if (!r.album) return false;
+                    const albumName = r.album.toLowerCase();
+                    return albumName.includes(albumQuery) || 
+                           fuzzyMatch(albumName, albumQuery);
+                });
+                logger.debug(`Album filter '${albumQuery}' reduced results from ${preAlbumCount} to ${filtered.length}`);
             }
+            
+            const filterTime = performance.now() - startTime;
+            logger.debug(`Filtering completed in ${filterTime.toFixed(2)}ms`);
+            
+            // Update search result counter
+            updateSearchResultCounter(filtered.length, originalCount);
             
             displayReviews(filtered);
+        }
+        
+        // Simple fuzzy matching for better search results
+        function fuzzyMatch(text, query) {
+            if (!text || !query) return false;
+            if (query.length < 3) return false; // Only use fuzzy matching for longer queries
+            
+            // Remove common words that might interfere
+            const commonWords = ['the', 'and', 'or', 'of', 'in', 'a', 'an'];
+            const cleanQuery = query.split(' ').filter(word => !commonWords.includes(word)).join(' ');
+            
+            if (cleanQuery.length === 0) return false;
+            
+            // Check if most characters from query exist in text (order doesn't matter)
+            const queryChars = cleanQuery.replace(/\s/g, '').toLowerCase();
+            const textChars = text.replace(/\s/g, '').toLowerCase();
+            
+            let matchCount = 0;
+            for (const char of queryChars) {
+                if (textChars.includes(char)) matchCount++;
+            }
+            
+            return (matchCount / queryChars.length) > 0.7; // 70% character match
+        }
+        
+        function updateSearchResultCounter(filteredCount, totalCount) {
+            const hasActiveSearch = currentSearch.artist || currentSearch.album;
+            if (hasActiveSearch) {
+                const subtitle = document.querySelector('.subtitle');
+                if (subtitle) {
+                    subtitle.textContent = `Showing ${filteredCount} of ${totalCount} reviews`;
+                    subtitle.style.color = filteredCount === 0 ? '#e74c3c' : '#7f8c8d';
+                }
+            }
+        }
+        
+        // Skeleton loading screens
+        function createStatsLoadingSkeleton() {
+            return `
+                <div class="stat-card">
+                    <div class="skeleton skeleton-stat"></div>
+                    <div class="stat-label">Loading...</div>
+                </div>
+                <div class="stat-card">
+                    <div class="skeleton skeleton-stat"></div>
+                    <div class="stat-label">Loading...</div>
+                </div>
+                <div class="stat-card">
+                    <div class="skeleton skeleton-stat"></div>
+                    <div class="stat-label">Loading...</div>
+                </div>
+                <div class="stat-card">
+                    <div class="skeleton skeleton-stat"></div>
+                    <div class="stat-label">Loading...</div>
+                </div>
+            `;
+        }
+        
+        function createReviewsLoadingSkeleton() {
+            const skeletonCards = Array.from({ length: 6 }, () => `
+                <div class="skeleton-card">
+                    <div class="skeleton skeleton-title"></div>
+                    <div class="skeleton skeleton-line" style="width: 60%;"></div>
+                    <div class="skeleton skeleton-line" style="width: 40%;"></div>
+                    <div class="skeleton skeleton-line" style="width: 80%;"></div>
+                    <div class="skeleton skeleton-line" style="width: 90%;"></div>
+                </div>
+            `).join('');
+            
+            return `<div class="reviews-grid">${skeletonCards}</div>`;
         }
         
         function displayReviews(reviews) {
             const container = document.getElementById('reviewsContainer');
             
             if (reviews.length === 0) {
-                container.innerHTML = '<div class="loading">No reviews found</div>';
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: #7f8c8d;">
+                        <div style="font-size: 2em; margin-bottom: 10px;">🔍</div>
+                        <div style="font-size: 1.1em; margin-bottom: 5px;">No reviews found</div>
+                        <div style="font-size: 0.9em;">Try adjusting your search criteria</div>
+                    </div>
+                `;
                 return;
             }
             
-            const reviewsHtml = reviews.map(review => {
-                if (review.overlap) {
-                    return `
-                        <div class="review-card" style="border: 3px solid #f39c12;">
-                            <div style="text-align: center; margin-bottom: 15px;">
-                                <span style="background: #f39c12; color: white; padding: 4px 8px; border-radius: 12px; font-size: 0.8em;">OVERLAP</span>
+            logger.info(`Displaying ${reviews.length} reviews`);
+            
+            const reviewsHtml = reviews.map((review, index) => {
+                try {
+                    if (review.overlap) {
+                        return `
+                            <div class="review-card" style="border: 3px solid #f39c12; animation: fadeIn 0.3s ease-in ${index * 0.05}s both;">
+                                <div style="text-align: center; margin-bottom: 15px;">
+                                    <span style="background: #f39c12; color: white; padding: 4px 8px; border-radius: 12px; font-size: 0.8em;">✨ OVERLAP</span>
+                                </div>
+                                <div class="artist-name">${escapeHtml(review.artist)}</div>
+                                <div class="album-name">${escapeHtml(review.album)}</div>
+                                <div class="year">${review.year || 'Unknown Year'}</div>
+                                <div style="margin: 15px 0; background: #f8f9fa; padding: 10px; border-radius: 8px;">
+                                    <div style="margin-bottom: 5px;">Fantano: <strong style="color: #e74c3c;">${review.fantano_score}</strong></div>
+                                    <div>Scaruffi: <strong style="color: #3498db;">${review.scaruffi_score}</strong></div>
+                                    ${review.comparison ? `<div style="margin-top: 8px; font-size: 0.8em; color: #7f8c8d;">${review.comparison.summary}</div>` : ''}
+                                </div>
                             </div>
-                            <div class="artist-name">${review.artist}</div>
-                            <div class="album-name">${review.album}</div>
-                            <div class="year">${review.year || ''}</div>
-                            <div style="margin: 15px 0;">
-                                <div>Fantano: <strong>${review.fantano_score}</strong></div>
-                                <div>Scaruffi: <strong>${review.scaruffi_score}</strong></div>
+                        `;
+                    } else {
+                        return `
+                            <div class="review-card" style="animation: fadeIn 0.3s ease-in ${index * 0.05}s both;">
+                                <div class="reviewer-badge ${review.reviewer}">${review.reviewer.toUpperCase()}</div>
+                                <div class="score ${review.reviewer}">${review.score || 'N/A'}</div>
+                                <div style="clear: both;"></div>
+                                <div class="artist-name">${escapeHtml(review.artist)}</div>
+                                <div class="album-name">${escapeHtml(review.album)}</div>
+                                <div class="year">${review.year || 'Unknown Year'}</div>
+                                <div class="summary">${truncateText(review.summary || 'No summary available', 150)}</div>
+                                ${review.source_url ? `<div style="margin-top: 10px;"><a href="${review.source_url}" target="_blank" style="color: #667eea; font-size: 0.8em; text-decoration: none;">→ Read full review</a></div>` : ''}
                             </div>
-                        </div>
-                    `;
-                } else {
-                    return `
-                        <div class="review-card">
-                            <div class="reviewer-badge ${review.reviewer}">${review.reviewer}</div>
-                            <div class="score ${review.reviewer}">${review.score || 'N/A'}</div>
-                            <div style="clear: both;"></div>
-                            <div class="artist-name">${review.artist}</div>
-                            <div class="album-name">${review.album}</div>
-                            <div class="year">${review.year || ''}</div>
-                            <div class="summary">${(review.summary || '').substring(0, 150)}${(review.summary || '').length > 150 ? '...' : ''}</div>
-                        </div>
-                    `;
+                        `;
+                    }
+                } catch (error) {
+                    logger.warn('Error rendering review:', error, review);
+                    return '';
                 }
             }).join('');
             
             container.innerHTML = `<div class="reviews-grid">${reviewsHtml}</div>`;
+        }
+        
+        // Utility functions
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        function truncateText(text, maxLength) {
+            if (!text || text.length <= maxLength) return text || '';
+            return text.substring(0, maxLength) + '...';
         }
     </script>
 </body>
